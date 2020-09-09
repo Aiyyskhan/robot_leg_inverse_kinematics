@@ -4,7 +4,7 @@
  * 
  * Simple test sketch 
  * 
- * create in 09.09.2020
+ * created in 09.09.2020
  * by Aiyyskhan Alexeev
  * 
  * 
