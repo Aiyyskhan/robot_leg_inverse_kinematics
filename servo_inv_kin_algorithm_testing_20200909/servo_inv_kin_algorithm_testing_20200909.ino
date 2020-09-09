@@ -2,7 +2,7 @@
  * 
  * Inverse kinematics algorithm
  * 
- * Testing simple example 
+ * Simple test sketch 
  * 
  * create in 09.09.2020
  * by Aiyyskhan Alexeev
@@ -34,7 +34,7 @@ float l_femur = 70.0; //mm
 float l_tibia = 70.0; //mm
 
 // интервал основного цикла
-const long interval = 10; // milliseconds
+const long interval = 1; // milliseconds
 unsigned long previousMillis = 0;
 
 Servo servo[NUM_SERVOS];
