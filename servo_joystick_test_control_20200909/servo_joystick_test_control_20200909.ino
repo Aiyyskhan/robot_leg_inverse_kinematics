@@ -1,79 +1,123 @@
-
+/*
+ * 
+ * Inverse kinematics algorithm
+ * 
+ * Example of leg control using a joystick
+ * 
+ * create in 09.09.2020
+ * by Aiyyskhan Alexeev
+ * 
+ * 
+ */
 
 #include <Servo.h>
 #include <math.h>
 
+// количество сервоприводов
 #define NUM_SERVOS 3
+
+// минимальное и максимальное значения импульсов сервопривода
+#define USMIN 500
+#define USMAX 2500
+
+// крайние значения возможных координат кончика ноги
+#define XMIN -180.0
+#define XMAX 180.0
+#define YMIN -75.0
+#define YMAX 75.0
+#define ZMIN -180.0
+#define ZMAX -40.0
 
 Servo servo[NUM_SERVOS];
 
-struct angles {
-  double tetta;
-  double alpha;
-  double gamma;
+struct Angles {
+  double tibia;
+  double femur;
+  double coxa;
 };
 
-struct coordinates {
-  double x4;
-  double y4;
-  double z4;
+struct Coordinates {
+  double x;
+  double y;
+  double z;
 };
+
+// начальные и текущие углы ноги (передней правой)
+Angles init_angles_FR;
+Angles curr_angles_FR;
+
+// начальные и текущие координаты кончика ноги (передней правой)
+Coordinates init_coord_FR;
+Coordinates curr_coord_FR;
+
+// координаты джойстика
+Coordinates joy_coord;
 
 // передняя левая нога
-uint8_t front_left_coxa_init_pos = 90;
-uint8_t front_left_femur_init_pos = 140;
-uint8_t front_left_tibia_init_pos = 180;
+init_angles_FR.tibia = 0;
+init_angles_FR.femur = 40;
+init_angles_FR.coxa = 90;
 
-// текущие положения сервоприводов
-uint8_t coxa_curr_pos;
-uint8_t femur_curr_pos;
-uint8_t tibia_curr_pos;
-
-float r = 15.0; //mm
-float h = 45.0 + 55.0; //h + h_coxa (mm)
+// длины конечностей ноги
 float l_coxa = 55.0; //mm
 float l_femur = 70.0; //mm
 float l_tibia = 70.0; //mm
+
+// поправочный угол конечности "femur"
 float sn_f = 60.0; // поправка в 60 градусов
 
+// интервал основного цикла
 const int DELAY_INTERVAL = 15; // ms
 
+// режимы
 const bool STARTING_POSITION = 0;
 const bool WORKING_POSITION = 1;
 
-float x_point, y_point, z_point, l, l1, alpha, alpha_1, alpha_2, beta, gamma;
 
 void initial_pose(String limb){
+  // функция установки конечностей в начальное положение
   if(limb == "coxa"){
-    coxa_pin.write(coxa_init_pos);
-    coxa_curr_pos = coxa_init_pos;
+    servo[0].write(init_angles_FR.tibia);
+    curr_angles_FL.tibia = init_angles_FL.tibia;
   }
   else if(limb == "femur"){
-    femur_pin.write(femur_init_pos);
-    femur_curr_pos = femur_init_pos;
+    servo[1].write(init_angles_FR.femur);
+    curr_angles_FL.femur = init_angles_FL.femur;
   }
   else if(limb == "tibia"){
-    tibia_pin.write(tibia_init_pos);
-    tibia_curr_pos = tibia_init_pos;
+    servo[2].write(init_angles_FR.coxa);
+    curr_angles_FL.coxa = init_angles_FL.coxa;
   }
 }
 
-uint16_t angle_to_microsec(uint16_t angle){
-  return (uint16_t)map(angle, 0, 180, USMIN, USMAX);
+int angle_to_microsec(double ang){
+  // функция конвертирующая углы (градусы) в импульсы (микросекунды) 
+  return (int)map(angle, 0.0, 180.0, USMIN, USMAX);
 }
 
-void angles_control(float x, float y, float z){
-  l1 = sqrt(sq(y) + sq(z + l_coxa));
-  l = sqrt(sq(x) + sq(l1 - l_coxa));
-  alpha_1 = degrees(acos(x / l));
+Coordinates joystick_sig_convert(Coordinates sig){
+  // функция конвертирующая сигналы джойстика в координаты кончика ноги
+  Coordinates coord;
+  coord.x = (float)map(sig.x, 0, 1023, XMIN, XMAX);
+  coord.y = (float)map(sig.y, 0, 1023, YMIN, YMAX);
+  coord.z = (float)map(sig.z, 0, 1023, ZMIN, ZMAX);
+  return coord;
+}
+
+Angles angles_control(Coordinates coord, bool reverse){
+  // функция обратной кинематики
+  // принимает координаты, на основе которых вычисляются углы сервоприводов конечностей
+  // аргумент reverse необходим для инвертирования углов (необходим для передней левой и задней правой ног)
+  Angles ang;
+  float l, l1, alpha, alpha_1, alpha_2, beta, gamma;
+  
+  l1 = sqrt(sq(coord.y) + sq(coord.z + l_coxa));
+  l = sqrt(sq(coord.x) + sq(l1 - l_coxa));
+  alpha_1 = degrees(acos(coord.x / l));
   alpha_2 = degrees(acos( (sq(l)+sq(l_femur)-sq(l_tibia))/(2.0*l*l_femur) ));
   alpha = alpha_1 + alpha_2;
   beta = degrees(acos( (sq(l_femur)+sq(l_tibia)-sq(l))/(2.0*l_femur*l_tibia) ));
   gamma = degrees(atan(y / z));
-  
-  alpha = constrain(alpha, 0.0, 180.0);
-  beta = constrain(beta, 0.0, 180.0);
-  gamma = constrain(gamma, 0.0, 180.0);
 
   Serial.println("");
   Serial.println("*************************");
@@ -85,73 +129,82 @@ void angles_control(float x, float y, float z){
   Serial.println("");
   
   if(reverse == false){
-    femur_curr_pos = (uint8_t)round( 180.0 - alpha );
-    tibia_curr_pos = (uint8_t)round( beta - 45.0 );
+    ang.tibia = (int)round( beta - 45.0 );
+    ang.femur = (int)round( 180.0 - alpha );
+    ang.coxa = (int)round(90.0 + gamma);
   }
   else{
-    femur_curr_pos = (uint8_t)round( alpha );
-    tibia_curr_pos = (uint8_t)round( 180.0 - (beta - 45.0) );
+    ang.tibia = (int)round( 180.0 - (beta - 45.0) );
+    ang.femur = (int)round( alpha );
+    ang.coxa = (int)round(90.0 + gamma);
   }
+
+  return ang;
 }
 
-void movement(String limb){
-  if(limb == "coxa"){         
-    coxa_pin.writeMicroseconds(angle_to_microsec(coxa_curr_pos));
-  }
-  else if(limb == "femur"){
-    femur_pin.writeMicroseconds(angle_to_microsec(femur_curr_pos));
-  }
-  else if(limb == "tibia"){
-    tibia_pin.writeMicroseconds(angle_to_microsec(tibia_curr_pos));
-  }
-}
-
-void initial_pose(){
-  front_left.initial_pose("tibia");
-  front_right.initial_pose("tibia");
-  back_left.initial_pose("tibia");
-  back_right.initial_pose("tibia");
-
-  delay(500);
-
-  front_left.initial_pose("femur");
-  front_right.initial_pose("femur");
-  back_left.initial_pose("femur");
-  back_right.initial_pose("femur");
-
-  delay(500);
-
-  front_left.initial_pose("coxa");
-  front_right.initial_pose("coxa");
-  back_left.initial_pose("coxa");
-  back_right.initial_pose("coxa");
-  
-  state = STARTING_POSITION;
+void movement(){
+  // функция приводящая в движение сервоприводы согласно текущим углам
+  servo[0].writeMicroseconds(angle_to_microsec(curr_angles_FR.tibia));
+  servo[1].writeMicroseconds(angle_to_microsec(curr_angles_FR.femur));
+  servo[2].writeMicroseconds(angle_to_microsec(curr_angles_FR.coxa));
 }
 
 void setup() {
   Serial.begin(9600);
+
+  // инициализация пина кнопки джойстика с подтягивающим резистором
   pinMode(19, INPUT_PULLUP);
+
+  // инициализация сервоприводов конечностей
   for(int i=0; i<NUM_SERVOS; i++){
-    servo[i].attach(2+i, 500, 2500);
+    servo[i].attach(8+i, 500, 2500);
   }
+  
   delay(15);
-  initial_pose();
+
+  // установка конечностей в начальное положение
+  initial_pose("tibia");
+  delay(500);
+  initial_pose("femur");
+  delay(500);
+  initial_pose("coxa");
+
+  // переключение режима в STARTING_POSITION
+  state = STARTING_POSITION;
 }
 
 void loop() {
-  button_handler();
-
-  if(state == WORKING_POSITION){
-    joystick_handler();
-  }
+  joystick_handler();
+  delay(DELAY_INTERVAL);
 }
 
 void joystick_handler(){
+  currentValue = digitalRead(19);
+  if(currentValue != prevValue){
+    delay(15);
+    currentValue = digitalRead(19);
+  }
+  prevValue = currentValue;
 
-  int vrx = analogRead(A0);
+  // переключение режима
+  if(currentValue == 0){
+    if(state == STARTING_POSITION){
+      state = WORKING_POSITION
+    }
+    else{
+      state = STARTING_POSITION
+    }
+  }
+
+  // управление джойстиком
+  if(state == WORKING_POSITION){
   
-  if(vrx < 100){
-    walking_forward();
+    joy_coord.x = analogRead(A0);
+    joy_coord.y = analogRead(A1);
+    joy_coord.z = 0.0;
+    
+    curr_coord_FR = joystick_sig_convert(joy_coord);
+    curr_angles_FR = angles_control(curr_coord_FR, false);
+    movement();
   }
 }
