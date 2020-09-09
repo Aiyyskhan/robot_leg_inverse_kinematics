@@ -2,7 +2,7 @@
  * 
  * Inverse kinematics algorithm
  * 
- * Example of leg control using a joystick
+ * Testing simple example 
  * 
  * create in 09.09.2020
  * by Aiyyskhan Alexeev
@@ -17,16 +17,25 @@
 #define NUM_SERVOS 3
 
 // минимальное и максимальное значения импульсов сервопривода
-#define USMIN 500
-#define USMAX 2500
+#define USMIN 500.0
+#define USMAX 2500.0
 
 // крайние значения возможных координат кончика ноги
 #define XMIN -100.0
 #define XMAX 100.0
 #define YMIN -75.0
 #define YMAX 75.0
-#define ZMIN 120.0
+#define ZMIN 100.0
 #define ZMAX 180.0
+
+// длины суставов ноги
+float l_coxa = 55.0; //mm
+float l_femur = 70.0; //mm
+float l_tibia = 70.0; //mm
+
+// интервал основного цикла
+const long interval = 10; // milliseconds
+unsigned long previousMillis = 0;
 
 Servo servo[NUM_SERVOS];
 
@@ -50,24 +59,6 @@ Angles curr_angles_FR;
 Coordinates init_coord_FR;
 Coordinates curr_coord_FR;
 
-// координаты джойстика
-Coordinates joy_coord;
-
-// длины суставов ноги
-float l_coxa = 55.0; //mm
-float l_femur = 70.0; //mm
-float l_tibia = 70.0; //mm
-
-// интервал основного цикла
-const int DELAY_INTERVAL = 5; // ms
-
-// режимы
-const bool STARTING_POSITION = 0;
-const bool WORKING_POSITION = 1;
-bool state;
-
-int currentValue, prevValue;
-
 void initial_pose(String limb){
   // функция установки конечностей в начальное положение
   if(limb == "coxa"){
@@ -84,25 +75,9 @@ void initial_pose(String limb){
   }
 }
 
-float angle_to_microsec(double ang){
+float angle_to_microsec(float ang){
   // функция конвертирующая углы (градусы) в импульсы (микросекунды) 
   return (float)map(ang, 0.0, 180.0, USMIN, USMAX);
-}
-
-Coordinates joystick_sig_convert(Coordinates sig){
-  // функция конвертирующая сигналы джойстика в координаты кончика ноги
-
-  Serial.println("");
-  Serial.println("*************************");
-  Serial.println("pot X: " + String(sig.x) + " " + "pot Y: " + String(sig.y) + " " + "pot Z: " + String(sig.z));
-  Serial.println("*************************");
-  Serial.println("");
-  
-  Coordinates coord;
-  coord.x = (float)map(sig.x, 0, 1023, XMIN, XMAX);
-  coord.y = (float)map(sig.y, 0, 1023, YMIN, YMAX);
-  coord.z = (float)map(sig.z, 0, 1023, ZMIN, ZMAX);
-  return coord;
 }
 
 Angles angles_control(Coordinates coord, bool reverse){
@@ -152,10 +127,6 @@ void movement(){
 
 void setup() {
   Serial.begin(9600);
-  analogReadResolution(10);
-
-  // инициализация пина кнопки джойстика с подтягивающим резистором
-  pinMode(19, INPUT_PULLUP);
 
   // инициализация сервоприводов конечностей
   for(int i=0; i<NUM_SERVOS; i++){
@@ -175,43 +146,104 @@ void setup() {
   initial_pose("femur");
   delay(500);
   initial_pose("coxa");
-
-  // переключение режима в STARTING_POSITION
-  state = STARTING_POSITION;
+  delay(1000);
 }
+
 
 void loop() {
-  joystick_handler();
-  delay(DELAY_INTERVAL);
-}
-
-void joystick_handler(){
-  currentValue = digitalRead(19);
-  if(currentValue != prevValue){
-    delay(15);
-    currentValue = digitalRead(19);
-  }
-  prevValue = currentValue;
-
-  // переключение режима
-  if(currentValue == 0){
-    if(state == STARTING_POSITION){
-      state = WORKING_POSITION;
-    }
-    else{
-      state = STARTING_POSITION;
-    }
-  }
-
-  // управление джойстиком
-  if(state == WORKING_POSITION){
-  
-    joy_coord.x = analogRead(A0);
-    joy_coord.y = analogRead(A1);
-    joy_coord.z = 548.0;
-    
-    curr_coord_FR = joystick_sig_convert(joy_coord);
-    curr_angles_FR = angles_control(curr_coord_FR, false);
-    movement();
+  unsigned long currentMillis = millis();
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+    // stepper();
+    // back_and_forth();
+    circular_path();
   }
 }
+
+int delta_x = 0;
+bool forward = true;
+
+void back_and_forth(){
+  curr_coord_FR.y = 0.0;
+  curr_coord_FR.z = 150.0; // среднее между ZMIN и ZMAX
+  curr_coord_FR.x = (float)delta_x;
+  curr_angles_FR = angles_control(curr_coord_FR, false);
+  movement();
+
+  if(forward){
+    delta_x += 2;
+  }
+  else{
+    delta_x -= 2;
+  }
+  if(delta_x >= XMAX){
+    forward = false;
+  }
+  else if(delta_x <= XMIN){
+    forward = true;
+  }
+}
+
+int circle_angle = 360;
+float r = 30.0; // радиус (mm)
+float h = 145.0; // среднее между ZMIN и ZMAX (mm)
+
+void circular_path(){
+  curr_coord_FR.y = 0.0;
+
+  curr_coord_FR.x = r * sin(radians(circle_angle));
+  curr_coord_FR.z = (r * cos(radians(circle_angle))) + h;
+
+  curr_angles_FR = angles_control(curr_coord_FR, false);
+  movement();
+
+  circle_angle -= 5;
+  if(circle_angle <= 0){
+    circle_angle = 360;
+  }
+}
+
+//float t = 0.0;
+//char sig = 'u';
+//
+//void stepper(){
+//  float x0, x1, x2, x3, y0, y1, y2, y3;
+//  float L;
+//
+//  L = 80;
+//  if (sig == 'u') {
+//    //Bezier curve with 4 points
+//    x0 = 0;
+//    y0 = 0;
+//
+//    x1 = -40;
+//    y1 = 20;
+//
+//    x2 = 120;
+//    y2 = 20;
+//
+//    x3 = 80;
+//    y3 = 0;
+//    
+//    curr_coord_FR.x = (1 - t) * ((1 - t) * ((1 - t) * x0 + t * x1) + t * ((1 - t) * x1 + t * x2)) +
+//               t * ((1 - t) * ((1 - t) * x1 + t * x2) + t * ((1 - t) * x2 + t * x3));
+//    curr_coord_FR.y = 0;
+//    curr_coord_FR.z = (1 - t) * ((1 - t) * ((1 - t) * y0 + t * y1) + t * ((1 - t) * y1 + t * y2)) +
+//               t * ((1 - t) * ((1 - t) * y1 + t * y2) + t * ((1 - t) * y2 + t * y3));
+//
+//  }
+//  else if (sig == 'd') {
+//    curr_coord_FR.x = L - L * t / 3;
+//    curr_coord_FR.y = 0;
+//    curr_coord_FR.z = 145;
+//  }
+//
+//  curr_angles_FR = angles_control(curr_coord_FR, false);
+//  movement();
+//  
+//  t += 0.01;
+//  if(t >= 0.99){
+//    t = 0.0;
+//    sig = (sig=='u') ? 'd' : 'u';
+//  }
+//}
