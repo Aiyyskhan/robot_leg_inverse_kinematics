@@ -156,10 +156,12 @@ void loop() {
     previousMillis = currentMillis;
     // stepper();
     // back_and_forth();
-    circular_path();
+    circulation();
   }
 }
 
+
+// #### пример линейного движения ####
 int delta_x = 0;
 bool forward = true;
 
@@ -184,11 +186,12 @@ void back_and_forth(){
   }
 }
 
+// #### пример кругового движения ####
 int circle_angle = 360;
 float r = 30.0; // радиус (mm)
 float h = 145.0; // среднее между ZMIN и ZMAX (mm)
 
-void circular_path(){
+void circulation(){
   curr_coord_FR.y = 0.0;
 
   curr_coord_FR.x = r * sin(radians(circle_angle));
@@ -203,6 +206,7 @@ void circular_path(){
   }
 }
 
+// #### незаконченный и неправильно работающий пример ####
 //float t = 0.0;
 //char sig = 'u';
 //
@@ -212,7 +216,7 @@ void circular_path(){
 //
 //  L = 80;
 //  if (sig == 'u') {
-//    //Bezier curve with 4 points
+//    // Кривая Безье с 4 точками
 //    x0 = 0;
 //    y0 = 0;
 //
