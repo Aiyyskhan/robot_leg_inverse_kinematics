@@ -21,11 +21,11 @@
 #define USMAX 2500
 
 // крайние значения возможных координат кончика ноги
-#define XMIN -180.0
-#define XMAX 180.0
+#define XMIN -100.0
+#define XMAX 100.0
 #define YMIN -75.0
 #define YMAX 75.0
-#define ZMIN -180.0
+#define ZMIN -150.0
 #define ZMAX -40.0
 
 Servo servo[NUM_SERVOS];
@@ -53,11 +53,6 @@ Coordinates curr_coord_FR;
 // координаты джойстика
 Coordinates joy_coord;
 
-// передняя левая нога
-init_angles_FR.tibia = 0;
-init_angles_FR.femur = 40;
-init_angles_FR.coxa = 90;
-
 // длины конечностей ноги
 float l_coxa = 55.0; //mm
 float l_femur = 70.0; //mm
@@ -72,35 +67,44 @@ const int DELAY_INTERVAL = 15; // ms
 // режимы
 const bool STARTING_POSITION = 0;
 const bool WORKING_POSITION = 1;
+bool state;
 
+int currentValue, prevValue;
 
 void initial_pose(String limb){
   // функция установки конечностей в начальное положение
   if(limb == "coxa"){
     servo[0].write(init_angles_FR.tibia);
-    curr_angles_FL.tibia = init_angles_FL.tibia;
+    curr_angles_FR.tibia = init_angles_FR.tibia;
   }
   else if(limb == "femur"){
     servo[1].write(init_angles_FR.femur);
-    curr_angles_FL.femur = init_angles_FL.femur;
+    curr_angles_FR.femur = init_angles_FR.femur;
   }
   else if(limb == "tibia"){
     servo[2].write(init_angles_FR.coxa);
-    curr_angles_FL.coxa = init_angles_FL.coxa;
+    curr_angles_FR.coxa = init_angles_FR.coxa;
   }
 }
 
 int angle_to_microsec(double ang){
   // функция конвертирующая углы (градусы) в импульсы (микросекунды) 
-  return (int)map(angle, 0.0, 180.0, USMIN, USMAX);
+  return (int)map(ang, 0.0, 180.0, USMIN, USMAX);
 }
 
 Coordinates joystick_sig_convert(Coordinates sig){
   // функция конвертирующая сигналы джойстика в координаты кончика ноги
+
+  Serial.println("");
+  Serial.println("*************************");
+  Serial.println("pot X: " + String(sig.x) + " " + "pot Y: " + String(sig.y) + " " + "pot Z: " + String(sig.z));
+  Serial.println("*************************");
+  Serial.println("");
+  
   Coordinates coord;
-  coord.x = (float)map(sig.x, 0, 1023, XMIN, XMAX);
-  coord.y = (float)map(sig.y, 0, 1023, YMIN, YMAX);
-  coord.z = (float)map(sig.z, 0, 1023, ZMIN, ZMAX);
+  coord.x = (float)map(sig.x, 0, 4095, XMIN, XMAX);
+  coord.y = (float)map(sig.y, 0, 4095, YMIN, YMAX);
+  coord.z = (float)map(sig.z, 0, 4095, ZMIN, ZMAX);
   return coord;
 }
 
@@ -117,11 +121,11 @@ Angles angles_control(Coordinates coord, bool reverse){
   alpha_2 = degrees(acos( (sq(l)+sq(l_femur)-sq(l_tibia))/(2.0*l*l_femur) ));
   alpha = alpha_1 + alpha_2;
   beta = degrees(acos( (sq(l_femur)+sq(l_tibia)-sq(l))/(2.0*l_femur*l_tibia) ));
-  gamma = degrees(atan(y / z));
+  gamma = degrees(atan(coord.y / coord.z));
 
   Serial.println("");
   Serial.println("*************************");
-  Serial.println("X: " + String(x) + " " + "Y: " + String(y) + " " + "Z: " + String(z));
+  Serial.println("X: " + String(coord.x) + " " + "Y: " + String(coord.y) + " " + "Z: " + String(coord.z));
   Serial.println("Alpha: " + String(alpha));
   Serial.println("Beta: " + String(beta));
   Serial.println("Gamma: " + String(gamma));
@@ -151,6 +155,7 @@ void movement(){
 
 void setup() {
   Serial.begin(9600);
+  analogReadResolution(12);
 
   // инициализация пина кнопки джойстика с подтягивающим резистором
   pinMode(19, INPUT_PULLUP);
@@ -161,6 +166,11 @@ void setup() {
   }
   
   delay(15);
+  
+  // передняя левая нога
+  init_angles_FR.tibia = 0;
+  init_angles_FR.femur = 40;
+  init_angles_FR.coxa = 90;
 
   // установка конечностей в начальное положение
   initial_pose("tibia");
@@ -189,10 +199,10 @@ void joystick_handler(){
   // переключение режима
   if(currentValue == 0){
     if(state == STARTING_POSITION){
-      state = WORKING_POSITION
+      state = WORKING_POSITION;
     }
     else{
-      state = STARTING_POSITION
+      state = STARTING_POSITION;
     }
   }
 
@@ -201,7 +211,7 @@ void joystick_handler(){
   
     joy_coord.x = analogRead(A0);
     joy_coord.y = analogRead(A1);
-    joy_coord.z = 0.0;
+    joy_coord.z = 2548.0;
     
     curr_coord_FR = joystick_sig_convert(joy_coord);
     curr_angles_FR = angles_control(curr_coord_FR, false);
