@@ -25,21 +25,21 @@
 #define XMAX 100.0
 #define YMIN -75.0
 #define YMAX 75.0
-#define ZMIN -150.0
-#define ZMAX -40.0
+#define ZMIN 120.0
+#define ZMAX 180.0
 
 Servo servo[NUM_SERVOS];
 
 struct Angles {
-  double tibia;
-  double femur;
-  double coxa;
+  float tibia;
+  float femur;
+  float coxa;
 };
 
 struct Coordinates {
-  double x;
-  double y;
-  double z;
+  float x;
+  float y;
+  float z;
 };
 
 // начальные и текущие углы ноги (передней правой)
@@ -62,7 +62,7 @@ float l_tibia = 70.0; //mm
 float sn_f = 60.0; // поправка в 60 градусов
 
 // интервал основного цикла
-const int DELAY_INTERVAL = 15; // ms
+const int DELAY_INTERVAL = 5; // ms
 
 // режимы
 const bool STARTING_POSITION = 0;
@@ -87,9 +87,9 @@ void initial_pose(String limb){
   }
 }
 
-int angle_to_microsec(double ang){
+float angle_to_microsec(double ang){
   // функция конвертирующая углы (градусы) в импульсы (микросекунды) 
-  return (int)map(ang, 0.0, 180.0, USMIN, USMAX);
+  return (float)map(ang, 0.0, 180.0, USMIN, USMAX);
 }
 
 Coordinates joystick_sig_convert(Coordinates sig){
@@ -102,9 +102,9 @@ Coordinates joystick_sig_convert(Coordinates sig){
   Serial.println("");
   
   Coordinates coord;
-  coord.x = (float)map(sig.x, 0, 4095, XMIN, XMAX);
-  coord.y = (float)map(sig.y, 0, 4095, YMIN, YMAX);
-  coord.z = (float)map(sig.z, 0, 4095, ZMIN, ZMAX);
+  coord.x = (float)map(sig.x, 0, 1023, XMIN, XMAX);
+  coord.y = (float)map(sig.y, 0, 1023, YMIN, YMAX);
+  coord.z = (float)map(sig.z, 0, 1023, ZMIN, ZMAX);
   return coord;
 }
 
@@ -115,11 +115,11 @@ Angles angles_control(Coordinates coord, bool reverse){
   Angles ang;
   float l, l1, alpha, alpha_1, alpha_2, beta, gamma;
   
-  l1 = sqrt(sq(coord.y) + sq(coord.z + l_coxa));
+  l1 = sqrt(sq(coord.y) + sq(coord.z));
   l = sqrt(sq(coord.x) + sq(l1 - l_coxa));
-  alpha_1 = degrees(acos(coord.x / l));
-  alpha_2 = degrees(acos( (sq(l)+sq(l_femur)-sq(l_tibia))/(2.0*l*l_femur) ));
-  alpha = alpha_1 + alpha_2;
+  alpha_1 = acos(coord.x / l);
+  alpha_2 = acos( (sq(l)+sq(l_femur)-sq(l_tibia))/(2.0*l*l_femur) );
+  alpha = degrees(alpha_1 + alpha_2);
   beta = degrees(acos( (sq(l_femur)+sq(l_tibia)-sq(l))/(2.0*l_femur*l_tibia) ));
   gamma = degrees(atan(coord.y / coord.z));
 
@@ -132,15 +132,15 @@ Angles angles_control(Coordinates coord, bool reverse){
   Serial.println("*************************");
   Serial.println("");
   
-  if(reverse == false){
-    ang.tibia = (int)round( beta - 45.0 );
-    ang.femur = (int)round( 180.0 - alpha );
-    ang.coxa = (int)round(90.0 + gamma);
+  if(reverse){
+    ang.tibia = 180.0 - (beta - 45.0);
+    ang.femur = alpha;
+    ang.coxa = 90.0 + gamma;
   }
   else{
-    ang.tibia = (int)round( 180.0 - (beta - 45.0) );
-    ang.femur = (int)round( alpha );
-    ang.coxa = (int)round(90.0 + gamma);
+    ang.tibia = beta - 45.0;
+    ang.femur = 180.0 - alpha;
+    ang.coxa = 90.0 + gamma;
   }
 
   return ang;
@@ -155,7 +155,7 @@ void movement(){
 
 void setup() {
   Serial.begin(9600);
-  analogReadResolution(12);
+  analogReadResolution(10);
 
   // инициализация пина кнопки джойстика с подтягивающим резистором
   pinMode(19, INPUT_PULLUP);
@@ -211,7 +211,7 @@ void joystick_handler(){
   
     joy_coord.x = analogRead(A0);
     joy_coord.y = analogRead(A1);
-    joy_coord.z = 2548.0;
+    joy_coord.z = 548.0;
     
     curr_coord_FR = joystick_sig_convert(joy_coord);
     curr_angles_FR = angles_control(curr_coord_FR, false);
