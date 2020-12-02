@@ -4,7 +4,7 @@
  * 
  * Simple test sketch 
  * 
- * created in 09.09.2020
+ * created in 02.12.2020
  * by Aiyyskhan Alexeev
  * 
  * 
@@ -139,136 +139,56 @@ void setup() {
 
 
 void loop() {
+  // проверка по оси X
+  delay(2000);
+  coord_FR.x = XMIN;
+  coord_FR.y = 0;
+  coord_FR.z = 150;      
+
+  angles_FR = angles_control(coord_FR, false);
+  movement();
   
-  for (double i = 0 ; i <= 0.99 ; i += increment){
-    unsigned long currentMillis = millis();
-    if (currentMillis - previousMillis >= interval) {
-      previousMillis = currentMillis;
-
-      step_coord_FR = stepper(i+2, 'd');
-      coord_FR.x = init_coord_FR.x + step_coord_FR.x;
-//      coord_FR.y = init_coord_FR.y + lateralGain * i;/ 
-      coord_FR.z = init_coord_FR.z + step_coord_FR.z;      
-
-      angles_FR = angles_control(coord_FR, false);
-      movement();
-    }
-  }
-
-  for (double i = 0 ; i <= 0.99 ; i += increment){
-    unsigned long currentMillis = millis();
-    if (currentMillis - previousMillis >= interval) {
-      previousMillis = currentMillis;
-
-      step_coord_FR = stepper(i, 'u');
-      coord_FR.x = init_coord_FR.x + step_coord_FR.x;
-//      coord_FR.y = init_coord_FR.y + lateralGain * (1-i);/
-      coord_FR.z = init_coord_FR.z + step_coord_FR.z;
-
-      angles_FR = angles_control(coord_FR, false);
-      movement();
-    }
-  }
-
-  for (double i = 0 ; i <= 0.99 ; i += increment){
-    unsigned long currentMillis = millis();
-    if (currentMillis - previousMillis >= interval) {
-      previousMillis = currentMillis;
-
-      step_coord_FR = stepper(i, 'd');
-      coord_FR.x = init_coord_FR.x + step_coord_FR.x;
-//      coord_FR.y = init_coord_FR.y - lateralGain * i;/
-      coord_FR.z = init_coord_FR.z + step_coord_FR.z;
-
-      angles_FR = angles_control(coord_FR, false);
-      movement();
-    }
-  }
-
-  for (double i = 0 ; i <= 0.99 ; i += increment){
-    unsigned long currentMillis = millis();
-    if (currentMillis - previousMillis >= interval) {
-      previousMillis = currentMillis;
-
-      step_coord_FR = stepper(i+1, 'd');
-      coord_FR.x = init_coord_FR.x + step_coord_FR.x;
-//      coord_FR.y = init_coord_FR.y - lateralGain * (1-i);/
-      coord_FR.z = init_coord_FR.z + step_coord_FR.z;
-
-      angles_FR = angles_control(coord_FR, false);
-      movement();
-    }
-  }
-}
-
-// #### пример кругового движения ####
-int circle_angle = 360;
-float r = 30.0; // радиус (mm)
-float h = 145.0; // среднее между ZMIN и ZMAX (mm)
-
-void circulation(){
-  coord_FR.y = 0.0;
-
-  coord_FR.x = r * sin(radians(circle_angle));
-  coord_FR.z = (r * cos(radians(circle_angle))) + h;
+  delay(2000);
+  coord_FR.x = XMAX;
+  coord_FR.y = 0;
+  coord_FR.z = 150;      
 
   angles_FR = angles_control(coord_FR, false);
   movement();
 
-  circle_angle -= 5;
-  if(circle_angle <= 0){
-    circle_angle = 360;
-  }
-}
+  /*
+  // проверка по оси Y
+  delay(2000);
+  coord_FR.x = 0;
+  coord_FR.y = YMIN;
+  coord_FR.z = 150;      
 
-// #### незаконченный и неправильно работающий пример ####
+  angles_FR = angles_control(coord_FR, false);
+  movement();
+  
+  delay(2000);
+  coord_FR.x = 0;
+  coord_FR.y = YMAX;
+  coord_FR.z = 150;      
 
-Coordinates stepper(double t, char sig){
-  Coordinates coord;
-  double x0, x1, x2, x3, z0, z1, z2, z3;
-  double L;
+  angles_FR = angles_control(coord_FR, false);
+  movement();
+  
+  // проверка по оси Z
+  delay(2000);
+  coord_FR.x = 0;
+  coord_FR.y = 0;
+  coord_FR.z = ZMIN;      
 
-  L = 70.0;
-  if (sig == 'u') {
-    // Кривая Безье с 4 точками
-    x0 = 0.0;
-    z0 = 180.0;
+  angles_FR = angles_control(coord_FR, false);
+  movement();
+  
+  delay(2000);
+  coord_FR.x = 0;
+  coord_FR.y = 0;
+  coord_FR.z = ZMAX;      
 
-    x1 = -10.0;
-    z1 = 150.0;
-
-    x2 = 80.0;
-    z2 = 150.0;
-
-    x3 = 70.0;
-    z3 = 180.0;
-    
-    double oneMinusT = 1.0 - t;
-
-    /*
-    coord.z = oneMinusT * (oneMinusT * (oneMinusT * x0 + t * x1) + t * (oneMinusT * x1 + t * x2)) +
-               t * (oneMinusT * (oneMinusT * x1 + t * x2) + t * (oneMinusT * x2 + t * x3));
-    coord.y = 0;
-    coord.x = oneMinusT * (oneMinusT * (oneMinusT * z0 + t * z1) + t * (oneMinusT * z1 + t * z2)) +
-               t * (oneMinusT * (oneMinusT * z1 + t * z2) + t * (oneMinusT * z2 + t * z3));
-    */
-
-    coord.z = oneMinusT * oneMinusT * oneMinusT * x0 + 
-              3.0 * oneMinusT * oneMinusT * t * x1 +
-              3.0 * oneMinusT * t * t * x2 +
-              t * t * t * x3;
-    coord.y = 0;
-    coord.x = oneMinusT * oneMinusT * oneMinusT * z0 + 
-              3.0 * oneMinusT * oneMinusT * t * z1 +
-              3.0 * oneMinusT * t * t * z2 +
-              t * t * t * z3;
-
-  }
-  else if (sig == 'd') {
-    coord.x = L - L * t / 3;
-    coord.y = 0;
-    coord.z = 180;
-  }
-
-  return coord;
+  angles_FR = angles_control(coord_FR, false);
+  movement();
+  */
 }
