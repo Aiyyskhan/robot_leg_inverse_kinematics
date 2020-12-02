@@ -34,7 +34,7 @@ float l_femur = 70.0; //mm
 float l_tibia = 100.0; //mm
 
 // интервал основного цикла
-const long interval = 300; // milliseconds
+const long interval = 20; // milliseconds
 float lateralGain = 15;
 double increment = 0.0001;
 unsigned long previousMillis = 0;
@@ -232,16 +232,16 @@ Coordinates stepper(double t, char sig){
   if (sig == 'u') {
     // Кривая Безье с 4 точками
     x0 = 0.0;
-    z0 = 180.0;
+    z0 = 20.0;
 
-    x1 = -10.0;
-    z1 = 150.0;
+    x1 = -40.0;
+    z1 = 40.0;
 
-    x2 = 80.0;
-    z2 = 150.0;
+    x2 = 100.0;
+    z2 = 40.0;
 
-    x3 = 70.0;
-    z3 = 180.0;
+    x3 = 80.0;
+    z3 = 20.0;
     
     double oneMinusT = 1.0 - t;
 
@@ -267,7 +267,7 @@ Coordinates stepper(double t, char sig){
   else if (sig == 'd') {
     coord.x = L - L * t / 3;
     coord.y = 0;
-    coord.z = 180;
+    coord.z = 0;
   }
 
   return coord;
