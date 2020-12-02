@@ -4,7 +4,7 @@
  * 
  * Simple test sketch 
  * 
- * created in 09.09.2020
+ * created in 02.12.2020
  * by Aiyyskhan Alexeev
  * 
  * 
@@ -34,7 +34,7 @@ float l_femur = 70.0; //mm
 float l_tibia = 70.0; //mm
 
 // интервал основного цикла
-const long interval = 10; // milliseconds
+const long interval = 1; // milliseconds
 unsigned long previousMillis = 0;
 
 Servo servo[NUM_SERVOS];
@@ -80,22 +80,65 @@ float angle_to_microsec(float ang){
   return (float)map(ang, 0.0, 180.0, USMIN, USMAX);
 }
 
+//Angles angles_control(Coordinates coord, bool reverse){
+//  // функция обратной кинематики
+//  // принимает координаты, на основе которых вычисляются углы сервоприводов конечностей
+//  // аргумент reverse необходим для инвертирования углов (необходим для передней левой и задней правой ног)
+//  Angles ang;
+//  float l, l1, alpha, alpha_1, alpha_2, beta, gamma;
+//  
+//  l1 = sqrt(sq(coord.y) + sq(coord.z));
+//  l = sqrt(sq(coord.x) + sq(l1 - l_coxa));
+//  alpha_1 = acos(coord.x / l);
+//  alpha_2 = acos( (sq(l)+sq(l_femur)-sq(l_tibia))/(2.0*l*l_femur) );
+//  alpha = degrees(alpha_1 + alpha_2);
+//  beta = degrees(acos( (sq(l_femur)+sq(l_tibia)-sq(l))/(2.0*l_femur*l_tibia) ));
+//  gamma = degrees(atan(coord.y / coord.z));
+//
+////  Serial.println("");
+////  Serial.println("*************************");
+////  Serial.println("X: " + String(coord.x) + " " + "Y: " + String(coord.y) + " " + "Z: " + String(coord.z));
+////  Serial.println("Alpha: " + String(alpha));
+////  Serial.println("Beta: " + String(beta));
+////  Serial.println("Gamma: " + String(gamma));
+////  Serial.println("*************************");
+////  Serial.println("");
+//  
+//  if(reverse){
+//    ang.tibia = 180.0 - (beta - 45.0);
+//    ang.femur = alpha;
+//    ang.coxa = 90.0 + gamma;
+//  }
+//  else{
+//    ang.tibia = beta - 45.0;
+//    ang.femur = 180.0 - alpha;
+//    ang.coxa = 90.0 + gamma;
+//  }
+//
+//  return ang;
+//}
+
 Angles angles_control(Coordinates coord, bool reverse){
   // функция обратной кинематики
   // принимает координаты, на основе которых вычисляются углы сервоприводов конечностей
   // аргумент reverse необходим для инвертирования углов (необходим для передней левой и задней правой ног)
   Angles ang;
-  float l, l1, alpha, alpha_1, alpha_2, beta, gamma;
+  float alpha, alpha_1, alpha_2, beta, gamma;
+
+  float femur = 70.0;
+  float tibia = 11.0;
+
+  float l1 = coord.x; //50.0 + x4;
+  float l2 = coord.y; //-60.0 + y4;
+  float l3 = coord.z; //0.0;
+
+  float l = sqrt((l1 * l1) + (l2 * l2) + (l3 * l3));
   
-  l1 = sqrt(sq(coord.y) + sq(coord.z));
-  l = sqrt(sq(coord.x) + sq(l1 - l_coxa));
-//  l = sqrt(sq(coord.x + 55.0) + sq(coord.y - 60.0) + sq(coord.z));
-  alpha_1 = acos(coord.x / l);
-  alpha_2 = acos( (sq(l)+sq(l_femur)-sq(l_tibia))/(2.0*l*l_femur) );
+  alpha_1 = asin(l1 / l);
+  alpha_2 = acos(((l * l) + (femur * femur) - (tibia * tibia)) / (2.0 * l * femur));
   alpha = degrees(alpha_1 + alpha_2);
-  beta = degrees(acos( (sq(l_femur)+sq(l_tibia)-sq(l))/(2.0*l_femur*l_tibia) ));
-  gamma = degrees(atan(coord.y / coord.z));
-//  gamma = degrees(atan(coord.z / coord.y));/
+  beta = degrees(acos(((femur * femur) + (tibia * tibia) - (l * l)) / (2.0 * femur * tibia)));
+  gamma = degrees(atan(l3 / l2));
 
 //  Serial.println("");
 //  Serial.println("*************************");
@@ -122,9 +165,9 @@ Angles angles_control(Coordinates coord, bool reverse){
 
 void movement(){
   // функция приводящая в движение сервоприводы согласно текущим углам
-  servo[0].writeMicroseconds(angle_to_microsec(curr_angles_FR.tibia));
+  servo[2].writeMicroseconds(angle_to_microsec(curr_angles_FR.tibia));
   servo[1].writeMicroseconds(angle_to_microsec(curr_angles_FR.femur));
-  servo[2].writeMicroseconds(angle_to_microsec(curr_angles_FR.coxa));
+  servo[0].writeMicroseconds(angle_to_microsec(curr_angles_FR.coxa));
 }
 
 void setup() {
@@ -156,9 +199,9 @@ void loop() {
   unsigned long currentMillis = millis();
   if (currentMillis - previousMillis >= interval) {
     previousMillis = currentMillis;
-    stepper();
+    // stepper();
     // back_and_forth();
-//    circulation();
+    circulation();
   }
 }
 
@@ -209,47 +252,47 @@ void circulation(){
 }
 
 // #### незаконченный и неправильно работающий пример ####
-float t = 0.0;
-char sig = 'u';
-
-void stepper(){
-  float x0, x1, x2, x3, z0, z1, z2, z3;
-  float L;
-
-  L = 80;
-  if (sig == 'u') {
-    // Кривая Безье с 4 точками
-    x0 = 0.0;
-    z0 = 180.0;
-
-    x1 = -40.0;
-    z1 = 150.0;
-
-    x2 = 100.0;
-    z2 = 150.0;
-
-    x3 = 80.0;
-    z3 = 100.0;
-    
-    curr_coord_FR.x = (1 - t) * ((1 - t) * ((1 - t) * x0 + t * x1) + t * ((1 - t) * x1 + t * x2)) +
-               t * ((1 - t) * ((1 - t) * x1 + t * x2) + t * ((1 - t) * x2 + t * x3));
-    curr_coord_FR.y = 0;
-    curr_coord_FR.z = (1 - t) * ((1 - t) * ((1 - t) * z0 + t * z1) + t * ((1 - t) * z1 + t * z2)) +
-               t * ((1 - t) * ((1 - t) * z1 + t * z2) + t * ((1 - t) * z2 + t * z3));
-
-  }
-  else if (sig == 'd') {
-    curr_coord_FR.x = L - L * t / 3;
+//float t = 0.0;
+//char sig = 'u';
+//
+//void stepper(){
+//  float x0, x1, x2, x3, y0, y1, y2, y3;
+//  float L;
+//
+//  L = 80;
+//  if (sig == 'u') {
+//    // Кривая Безье с 4 точками
+//    x0 = 0;
+//    y0 = 0;
+//
+//    x1 = -40;
+//    y1 = 20;
+//
+//    x2 = 120;
+//    y2 = 20;
+//
+//    x3 = 80;
+//    y3 = 0;
+//    
+//    curr_coord_FR.x = (1 - t) * ((1 - t) * ((1 - t) * x0 + t * x1) + t * ((1 - t) * x1 + t * x2)) +
+//               t * ((1 - t) * ((1 - t) * x1 + t * x2) + t * ((1 - t) * x2 + t * x3));
 //    curr_coord_FR.y = 0;
-//    curr_coord_FR.z = 0;
-  }
-
-  curr_angles_FR = angles_control(curr_coord_FR, false);
-  movement();
-  
-  t += 0.01;
-  if(t >= 0.99){
-    t = 0.0;
-    sig = (sig=='u') ? 'd' : 'u';
-  }
-}
+//    curr_coord_FR.z = (1 - t) * ((1 - t) * ((1 - t) * y0 + t * y1) + t * ((1 - t) * y1 + t * y2)) +
+//               t * ((1 - t) * ((1 - t) * y1 + t * y2) + t * ((1 - t) * y2 + t * y3));
+//
+//  }
+//  else if (sig == 'd') {
+//    curr_coord_FR.x = L - L * t / 3;
+//    curr_coord_FR.y = 0;
+//    curr_coord_FR.z = 145;
+//  }
+//
+//  curr_angles_FR = angles_control(curr_coord_FR, false);
+//  movement();
+//  
+//  t += 0.01;
+//  if(t >= 0.99){
+//    t = 0.0;
+//    sig = (sig=='u') ? 'd' : 'u';
+//  }
+//}
