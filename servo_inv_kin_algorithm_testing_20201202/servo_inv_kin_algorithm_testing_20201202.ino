@@ -311,8 +311,7 @@ Coordinates stepper(double t, char sig){
     //              t * t * t * z3;
     coord.x = L * t / 3;
     coord.y = 0;
-    coord.z = 0;
-    
+    coord.z = 0;    
   }
   else if (sig == 'd') {
     coord.x = L - L * t / 3;
